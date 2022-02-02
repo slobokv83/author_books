@@ -78,7 +78,7 @@ def create_user():
     db.session.commit()
     return {"message": "New user created!"}
 
-@app.route('/user/<id>', methods=['PATCH'])# zasto moze i PUT?
+@app.route('/user/<id>', methods=['PATCH'])
 @jwt_required()
 def promote_user(id):
     current_id = get_jwt_identity()
@@ -108,7 +108,7 @@ def delete_user(id):
     db.session.commit()
     return {"message": "The user has been deleted!"}
 
-@app.route('/login', methods=['POST'])# ako ne navedem metod, onda je GET?
+@app.route('/login', methods=['POST'])
 def login():
     auth = request.authorization
     
@@ -189,7 +189,7 @@ def delete_author_book(id):
     db.session.commit()
     return {"message": "The book deleted!"}
 
-@app.route('/book/<id>', methods=['PUT'])# moze i PATCH
+@app.route('/book/<id>', methods=['PUT'])
 @jwt_required()
 def edit_author_book(id):
     data = request.get_json()
