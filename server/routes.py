@@ -1,14 +1,27 @@
-import uuid, jwt
-from server import app, db
+import uuid
+from server import app, db, jwt
 from server.jwt.jwt_util import token_required
 from flask import jsonify, request, make_response
 from werkzeug.security import generate_password_hash, check_password_hash
-import datetime
 from server.models import User, Book
+from server.redis import jwt_redis_blocklist
+from server.utils.utils import ACCESS_EXPIRES
+from flask_jwt_extended import (
+    create_access_token, jwt_required, get_jwt_identity, get_jwt)
+
+
+# Callback function to check if a JWT exists in the redis blocklist
+@jwt.token_in_blocklist_loader
+def check_if_token_is_revoked(jwt_header, jwt_payload):
+    jti = jwt_payload["jti"]
+    token_in_redis = jwt_redis_blocklist.get(jti)
+    return token_in_redis is not None
 
 @app.route('/user', methods=['GET'])
-@token_required
-def get_all_users(current_user):
+@jwt_required()
+def get_all_users():
+    current_id = get_jwt_identity()
+    current_user = User.query.filter_by(public_id=current_id).first()
 
     if not current_user.admin:
         return jsonify({"message": "No permisson for the operation"})
@@ -25,8 +38,11 @@ def get_all_users(current_user):
     return jsonify({"users": output})
 
 @app.route('/user/<public_id>', methods=['GET'])
-@token_required
-def get_one_user(current_user, public_id):
+@jwt_required()
+def get_one_user(public_id):
+    current_id = get_jwt_identity()
+    current_user = User.query.filter_by(public_id=current_id).first()
+
     if not current_user.admin:
         return jsonify({"message": "No permisson for the operation"})
     user = User.query.filter_by(public_id=public_id).first()
@@ -41,8 +57,11 @@ def get_one_user(current_user, public_id):
     return jsonify({"user": user_data})
 
 @app.route('/user', methods=['POST'])
-@token_required
-def create_user(current_user):
+@jwt_required()
+def create_user():
+    current_id = get_jwt_identity()
+    current_user = User.query.filter_by(public_id=current_id).first()
+
     if not current_user.admin:
         return jsonify({"message": "No permisson for the operation"})
     data = request.get_json()
@@ -61,8 +80,11 @@ def create_user(current_user):
     return jsonify({"message": "New user created!"})
 
 @app.route('/user/<public_id>', methods=['PATCH'])# zasto moze i PUT?
-@token_required
-def promote_user(current_user, public_id):
+@jwt_required()
+def promote_user(public_id):
+    current_id = get_jwt_identity()
+    current_user = User.query.filter_by(public_id=current_id).first()
+
     if not current_user.admin:
         return jsonify({"message": "No permisson for the operation"})
     user = User.query.filter_by(public_id=public_id).first()
@@ -73,8 +95,11 @@ def promote_user(current_user, public_id):
     return jsonify({"message": "The user has been prometed to admin"})
 
 @app.route('/user/<public_id>', methods=['DELETE'])
-@token_required
-def delete_user(current_user, public_id):
+@jwt_required()
+def delete_user(public_id):
+    current_id = get_jwt_identity()
+    current_user = User.query.filter_by(public_id=current_id).first()
+    
     if not current_user.admin:
         return jsonify({"message": "No permisson for the operation"})
     user = User.query.filter_by(public_id=public_id).first()
@@ -84,7 +109,7 @@ def delete_user(current_user, public_id):
     db.session.commit()
     return jsonify({"message": "The user has been deleted!"})
 
-@app.route('/login')# ako ne navedem metod, onda je GET?
+@app.route('/login', methods=['POST'])# ako ne navedem metod, onda je GET?
 def login():
     auth = request.authorization
     
@@ -99,20 +124,39 @@ def login():
             {'WWW-Authenticate': 'Basic realm="Login required!"'})
 
     if check_password_hash(user.password, auth.password):
-        token = jwt.encode({
-            'public_id': user.public_id,
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=180)
-            }, app.config['SECRET_KEY'], algorithm="HS256")
+        token = create_access_token(identity=user.public_id)
 
         return jsonify({"token": token})# zasto nije binaran? nema .decode()
 
     return make_response('Could not verify', 401,
         {'WWW-Authenticate': 'Basic realm="Login required!"'})
 
+@app.route('/logout', methods=['DELETE'])
+@jwt_required()
+def logout():
+    jti = get_jwt()['jti']
+    jwt_redis_blocklist.set(jti, "", ex=ACCESS_EXPIRES)
+    create_access_token(identity="")
+    return jsonify({"message": "Successfully logged out"}), 200
+
+
+@app.route('/refresh_token', methods=['POST'])
+@jwt_required()
+def refresh():
+
+    current_id = get_jwt_identity()
+    ret = {
+        'token': create_access_token(identity=current_id, expires_delta=None)
+    }
+    return jsonify(ret), 200
+
 
 @app.route('/book', methods=['GET'])
-@token_required
-def get_author_books(current_user):
+@jwt_required()
+def get_author_books():
+    current_id = get_jwt_identity()
+    current_user = User.query.filter_by(public_id=current_id).first()
+
     books = Book.query.filter_by(user_id=current_user.public_id).all()
     output = []
     for book in books:
@@ -125,8 +169,8 @@ def get_author_books(current_user):
     return jsonify({"author_books": output})
 
 @app.route('/book/<book_id>', methods=['GET'])
-@token_required
-def get_one_book(current_user, book_id):
+@jwt_required()
+def get_one_book(book_id):
     book = Book.query.filter_by(book_id=book_id).first()
     if not book:
         return jsonify({"message": "No book found!"})
@@ -139,16 +183,16 @@ def get_one_book(current_user, book_id):
 
 
 @app.route('/book/<book_id>', methods=['DELETE'])
-@token_required
-def delete_author_book(current_user, book_id):
+@jwt_required()
+def delete_author_book(book_id):
     book = Book.query.filter_by(book_id=book_id).first()
     db.session.delete(book)
     db.session.commit()
     return jsonify({"message": "The book deleted!"})
 
 @app.route('/book/<book_id>', methods=['PUT'])# moze i PATCH
-@token_required
-def edit_author_book(current_user, book_id):
+@jwt_required()
+def edit_author_book(book_id):
     data = request.get_json()
     book = Book.query.filter_by(book_id=book_id).first()
     if "title" in data:
@@ -165,8 +209,11 @@ def edit_author_book(current_user, book_id):
 
 
 @app.route('/book', methods=['POST'])
-@token_required
-def add_author_book(current_user):
+@jwt_required()
+def add_author_book():
+    current_id = get_jwt_identity()
+    current_user = User.query.filter_by(public_id=current_id).first()
+
     data = request.get_json()
     book = Book(
         book_id=str(uuid.uuid4()),
