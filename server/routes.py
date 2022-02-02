@@ -1,6 +1,6 @@
 import uuid
 from server import app, db, jwt
-from flask import jsonify, request, make_response
+from flask import request, make_response
 from werkzeug.security import generate_password_hash, check_password_hash
 from server.models import User, Book
 from server.redis import jwt_redis_blocklist
@@ -23,7 +23,7 @@ def get_all_users():
     current_user = User.query.filter_by(public_id=current_id).first()
 
     if not current_user.admin:
-        return jsonify({"message": "No permisson for the operation"})
+        return {"message": "No permisson for the operation"}
     users = User.query.all()
     output = []
     for user in users:
@@ -34,7 +34,7 @@ def get_all_users():
         user_data["admin"] = user.admin
         output.append(user_data)
 
-    return jsonify({"users": output})
+    return {"users": output}
 
 @app.route('/user/<public_id>', methods=['GET'])
 @jwt_required()
@@ -43,17 +43,17 @@ def get_one_user(public_id):
     current_user = User.query.filter_by(public_id=current_id).first()
 
     if not current_user.admin:
-        return jsonify({"message": "No permisson for the operation"})
+        return {"message": "No permisson for the operation"}
     user = User.query.filter_by(public_id=public_id).first()
     if not user:
-        return jsonify({"message": "No user found!"})
+        return {"message": "No user found!"}
     user_data = {}
     user_data["public_id"] = user.public_id
     user_data["username"] = user.username
     user_data["password"] = user.password
     user_data["admin"] = user.admin
 
-    return jsonify({"user": user_data})
+    return {"user": user_data}
 
 @app.route('/user', methods=['POST'])
 @jwt_required()
@@ -62,12 +62,12 @@ def create_user():
     current_user = User.query.filter_by(public_id=current_id).first()
 
     if not current_user.admin:
-        return jsonify({"message": "No permisson for the operation"})
+        return {"message": "No permisson for the operation"}
     data = request.get_json()
     users = User.query.all()
     for user in users:
         if data["username"] == user.username:
-            return jsonify({"message": "Username is aready in use"})
+            return {"message": "Username is aready in use"}
     hashed_password = generate_password_hash(
         data["password"], method=app.config["HASH_ALGORITHM"])
     new_user = User(
@@ -77,7 +77,7 @@ def create_user():
         admin=False)
     db.session.add(new_user)
     db.session.commit()
-    return jsonify({"message": "New user created!"})
+    return {"message": "New user created!"}
 
 @app.route('/user/<public_id>', methods=['PATCH'])# zasto moze i PUT?
 @jwt_required()
@@ -86,13 +86,13 @@ def promote_user(public_id):
     current_user = User.query.filter_by(public_id=current_id).first()
 
     if not current_user.admin:
-        return jsonify({"message": "No permisson for the operation"})
+        return {"message": "No permisson for the operation"}
     user = User.query.filter_by(public_id=public_id).first()
     if not user:
-        return jsonify({"message": "No user found!"})
+        return {"message": "No user found!"}
     user.admin = True
     db.session.commit()
-    return jsonify({"message": "The user has been prometed to admin"})
+    return {"message": "The user has been prometed to admin"}
 
 @app.route('/user/<public_id>', methods=['DELETE'])
 @jwt_required()
@@ -101,13 +101,13 @@ def delete_user(public_id):
     current_user = User.query.filter_by(public_id=current_id).first()
     
     if not current_user.admin:
-        return jsonify({"message": "No permisson for the operation"})
+        return {"message": "No permisson for the operation"}
     user = User.query.filter_by(public_id=public_id).first()
     if not user:
-        return jsonify({"message": "No user found!"})
+        return {"message": "No user found!"}
     db.session.delete(user)
     db.session.commit()
-    return jsonify({"message": "The user has been deleted!"})
+    return {"message": "The user has been deleted!"}
 
 @app.route('/login', methods=['POST'])# ako ne navedem metod, onda je GET?
 def login():
@@ -115,7 +115,7 @@ def login():
     
     if not auth or not auth.username or not auth.password:
         return make_response('Could not verify', 401,
-            {'WWW-Authenticate': 'Basic realm="Login required!"'})# zasto WWW-Authenticate - neka standardna forma?
+            {'WWW-Authenticate': 'Basic realm="Login required!"'})
 
     user = User.query.filter_by(username=auth.username).first()
 
@@ -126,7 +126,7 @@ def login():
     if check_password_hash(user.password, auth.password):
         token = create_access_token(identity=user.public_id)
 
-        return jsonify({"token": token})# zasto nije binaran? nema .decode()
+        return {"token": token}
 
     return make_response('Could not verify', 401,
         {'WWW-Authenticate': 'Basic realm="Login required!"'})
@@ -137,7 +137,7 @@ def logout():
     jti = get_jwt()['jti']
     jwt_redis_blocklist.set(jti, "", ex=ACCESS_EXPIRES)
     create_access_token(identity="")
-    return jsonify({"message": "Successfully logged out"}), 200
+    return {"msg": "Access token revoked"}, 200
 
 
 @app.route('/refresh_token', methods=['POST'])
@@ -148,7 +148,7 @@ def refresh():
     ret = {
         'token': create_access_token(identity=current_id, expires_delta=None)
     }
-    return jsonify(ret), 200
+    return ret, 200
 
 
 @app.route('/book', methods=['GET'])
@@ -166,20 +166,20 @@ def get_author_books():
         book_data["complete"] = book.complete
         book_data["user_id"] = book.user_id
         output.append(book_data)
-    return jsonify({"author_books": output})
+    return {"author_books": output}
 
 @app.route('/book/<book_id>', methods=['GET'])
 @jwt_required()
 def get_one_book(book_id):
     book = Book.query.filter_by(book_id=book_id).first()
     if not book:
-        return jsonify({"message": "No book found!"})
+        return {"message": "No book found!"}
     book_data = {}
     book_data["book_id"] = book.book_id
     book_data["title"] = book.title
     book_data["complete"] = book.complete
     book_data["user_id"] = book.user_id
-    return jsonify({"book": book_data})
+    return {"book": book_data}
 
 
 @app.route('/book/<book_id>', methods=['DELETE'])
@@ -188,7 +188,7 @@ def delete_author_book(book_id):
     book = Book.query.filter_by(book_id=book_id).first()
     db.session.delete(book)
     db.session.commit()
-    return jsonify({"message": "The book deleted!"})
+    return {"message": "The book deleted!"}
 
 @app.route('/book/<book_id>', methods=['PUT'])# moze i PATCH
 @jwt_required()
@@ -205,7 +205,7 @@ def edit_author_book(book_id):
     book_data["complete"] = book.complete
     book_data["title"] = book.title
     book_data["user_id"] = book.user_id
-    return jsonify({"book": book_data})
+    return {"book": book_data}
 
 
 @app.route('/book', methods=['POST'])
@@ -223,4 +223,4 @@ def add_author_book():
         )
     db.session.add(book)
     db.session.commit()
-    return jsonify({"message": "New book added!"})
+    return {"message": "New book added!"}
