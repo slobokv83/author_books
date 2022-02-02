@@ -20,7 +20,7 @@ def check_if_token_is_revoked(jwt_header, jwt_payload):
 @jwt_required()
 def get_all_users():
     current_id = get_jwt_identity()
-    current_user = User.query.filter_by(public_id=current_id).first()
+    current_user = User.query.filter_by(id=current_id).first()
 
     if not current_user.admin:
         return {"message": "No permisson for the operation"}
@@ -28,7 +28,7 @@ def get_all_users():
     output = []
     for user in users:
         user_data = {}
-        user_data["public_id"] = user.public_id
+        user_data["id"] = user.id
         user_data["username"] = user.username
         user_data["password"] = user.password
         user_data["admin"] = user.admin
@@ -36,19 +36,19 @@ def get_all_users():
 
     return {"users": output}
 
-@app.route('/user/<public_id>', methods=['GET'])
+@app.route('/user/<id>', methods=['GET'])
 @jwt_required()
-def get_one_user(public_id):
+def get_one_user(id):
     current_id = get_jwt_identity()
-    current_user = User.query.filter_by(public_id=current_id).first()
+    current_user = User.query.filter_by(id=current_id).first()
 
     if not current_user.admin:
         return {"message": "No permisson for the operation"}
-    user = User.query.filter_by(public_id=public_id).first()
+    user = User.query.filter_by(id=id).first()
     if not user:
         return {"message": "No user found!"}
     user_data = {}
-    user_data["public_id"] = user.public_id
+    user_data["id"] = user.id
     user_data["username"] = user.username
     user_data["password"] = user.password
     user_data["admin"] = user.admin
@@ -59,7 +59,7 @@ def get_one_user(public_id):
 @jwt_required()
 def create_user():
     current_id = get_jwt_identity()
-    current_user = User.query.filter_by(public_id=current_id).first()
+    current_user = User.query.filter_by(id=current_id).first()
 
     if not current_user.admin:
         return {"message": "No permisson for the operation"}
@@ -71,7 +71,6 @@ def create_user():
     hashed_password = generate_password_hash(
         data["password"], method=app.config["HASH_ALGORITHM"])
     new_user = User(
-        public_id=str(uuid.uuid4()),
         username=data["username"],
         password=hashed_password,
         admin=False)
@@ -79,30 +78,30 @@ def create_user():
     db.session.commit()
     return {"message": "New user created!"}
 
-@app.route('/user/<public_id>', methods=['PATCH'])# zasto moze i PUT?
+@app.route('/user/<id>', methods=['PATCH'])# zasto moze i PUT?
 @jwt_required()
-def promote_user(public_id):
+def promote_user(id):
     current_id = get_jwt_identity()
-    current_user = User.query.filter_by(public_id=current_id).first()
+    current_user = User.query.filter_by(id=current_id).first()
 
     if not current_user.admin:
         return {"message": "No permisson for the operation"}
-    user = User.query.filter_by(public_id=public_id).first()
+    user = User.query.filter_by(id=id).first()
     if not user:
         return {"message": "No user found!"}
     user.admin = True
     db.session.commit()
     return {"message": "The user has been prometed to admin"}
 
-@app.route('/user/<public_id>', methods=['DELETE'])
+@app.route('/user/<id>', methods=['DELETE'])
 @jwt_required()
-def delete_user(public_id):
+def delete_user(id):
     current_id = get_jwt_identity()
-    current_user = User.query.filter_by(public_id=current_id).first()
+    current_user = User.query.filter_by(id=current_id).first()
     
     if not current_user.admin:
         return {"message": "No permisson for the operation"}
-    user = User.query.filter_by(public_id=public_id).first()
+    user = User.query.filter_by(id=id).first()
     if not user:
         return {"message": "No user found!"}
     db.session.delete(user)
@@ -124,7 +123,7 @@ def login():
             {'WWW-Authenticate': 'Basic realm="Login required!"'})
 
     if check_password_hash(user.password, auth.password):
-        token = create_access_token(identity=user.public_id)
+        token = create_access_token(identity=user.id)
 
         return {"token": token}
 
@@ -137,7 +136,7 @@ def logout():
     jti = get_jwt()['jti']
     jwt_redis_blocklist.set(jti, "", ex=ACCESS_EXPIRES)
     create_access_token(identity="")
-    return {"msg": "Access token revoked"}, 200
+    return {"msg": "Token has been revoked"}, 200
 
 
 @app.route('/refresh_token', methods=['POST'])
@@ -155,53 +154,53 @@ def refresh():
 @jwt_required()
 def get_author_books():
     current_id = get_jwt_identity()
-    current_user = User.query.filter_by(public_id=current_id).first()
+    current_user = User.query.filter_by(id=current_id).first()
 
-    books = Book.query.filter_by(user_id=current_user.public_id).all()
+    books = Book.query.filter_by(user_id=current_user.id).all()
     output = []
     for book in books:
         book_data = {}
-        book_data["book_id"] = book.book_id
+        book_data["id"] = book.id
         book_data["title"] = book.title
         book_data["complete"] = book.complete
         book_data["user_id"] = book.user_id
         output.append(book_data)
     return {"author_books": output}
 
-@app.route('/book/<book_id>', methods=['GET'])
+@app.route('/book/<id>', methods=['GET'])
 @jwt_required()
-def get_one_book(book_id):
-    book = Book.query.filter_by(book_id=book_id).first()
+def get_one_book(id):
+    book = Book.query.filter_by(id=id).first()
     if not book:
         return {"message": "No book found!"}
     book_data = {}
-    book_data["book_id"] = book.book_id
+    book_data["id"] = book.id
     book_data["title"] = book.title
     book_data["complete"] = book.complete
     book_data["user_id"] = book.user_id
     return {"book": book_data}
 
 
-@app.route('/book/<book_id>', methods=['DELETE'])
+@app.route('/book/<id>', methods=['DELETE'])
 @jwt_required()
-def delete_author_book(book_id):
-    book = Book.query.filter_by(book_id=book_id).first()
+def delete_author_book(id):
+    book = Book.query.filter_by(id=id).first()
     db.session.delete(book)
     db.session.commit()
     return {"message": "The book deleted!"}
 
-@app.route('/book/<book_id>', methods=['PUT'])# moze i PATCH
+@app.route('/book/<id>', methods=['PUT'])# moze i PATCH
 @jwt_required()
-def edit_author_book(book_id):
+def edit_author_book(id):
     data = request.get_json()
-    book = Book.query.filter_by(book_id=book_id).first()
+    book = Book.query.filter_by(id=id).first()
     if "title" in data:
         book.title = data["title"]
     if "complete" in data:
         book.complete = data["complete"]
     db.session.commit()
     book_data = {}
-    book_data["book_id"] = book.book_id
+    book_data["id"] = book.id
     book_data["complete"] = book.complete
     book_data["title"] = book.title
     book_data["user_id"] = book.user_id
@@ -212,14 +211,14 @@ def edit_author_book(book_id):
 @jwt_required()
 def add_author_book():
     current_id = get_jwt_identity()
-    current_user = User.query.filter_by(public_id=current_id).first()
+    current_user = User.query.filter_by(id=current_id).first()
 
     data = request.get_json()
     book = Book(
-        book_id=str(uuid.uuid4()),
+        id=str(uuid.uuid4()),
         title = data["title"],
         complete = data["complete"],
-        user_id = current_user.public_id
+        user_id = current_user.id
         )
     db.session.add(book)
     db.session.commit()

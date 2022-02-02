@@ -2,5 +2,5 @@ venv/
 mydb.db
 __pycache__/
 server/__pycache__/
-jwt/__pycache__/
+utils/__pycache__/
 .env
