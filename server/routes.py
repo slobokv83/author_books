@@ -68,7 +68,8 @@ def create_user():
     for user in users:
         if data["username"] == user.username:
             return jsonify({"message": "Username is aready in use"})
-    hashed_password = generate_password_hash(data["password"], method="sha256")
+    hashed_password = generate_password_hash(
+        data["password"], method=app.config["HASH_ALGORITHM"])
     new_user = User(
         public_id=str(uuid.uuid4()),
         username=data["username"],
