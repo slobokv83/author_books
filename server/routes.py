@@ -1,6 +1,5 @@
 import uuid
 from server import app, db, jwt
-from server.jwt.jwt_util import token_required
 from flask import jsonify, request, make_response
 from werkzeug.security import generate_password_hash, check_password_hash
 from server.models import User, Book
