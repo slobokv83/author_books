@@ -79,7 +79,8 @@ def create_user():
     new_user = User(
         username=data["username"],
         password=hashed_password,
-        admin=False)
+        admin=False,
+        bk_id=)
 
     try:
         db.session.add(new_user)
@@ -179,7 +180,8 @@ def logout():
 @jwt_required()
 def get_author_books():
     current_user = User.query.filter_by(id=get_jwt_identity()).first()
-    books = Book.query.filter_by(user_id=current_user.id).all()
+    print("**************************", current_user.id)
+    books = Book.query.filter_by(usr_id=current_user.id).all()
 
     if not books:
         abort(401, 'Books do not exist')
@@ -251,13 +253,11 @@ def edit_author_book(id):
 @app.route('/book', methods=['POST'])
 @jwt_required()
 def add_author_book():
-    current_user = User.query.filter_by(id=get_jwt_identity()).first()
     data = request.get_json()
 
     book = Book(
         title=data["title"],
-        complete=data["complete"],
-        user_id=current_user.id)
+        complete=data["complete"])
 
     try:
         db.session.add(book)
