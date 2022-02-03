@@ -1,3 +1,4 @@
+.vscode
 venv/
 mydb.db
 __pycache__/
