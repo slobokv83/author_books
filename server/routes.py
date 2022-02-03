@@ -25,15 +25,7 @@ def get_all_users():
     if not current_user.admin:
         return {"message": "No permisson for the operation"}
     users = User.query.all()
-    output = []
-    for user in users:
-        user_data = {}
-        user_data["id"] = user.id
-        user_data["username"] = user.username
-        user_data["password"] = user.password
-        user_data["admin"] = user.admin
-        output.append(user_data)
-
+    output = [user.to_dict() for user in users]
     return {"users": output}
 
 @app.route('/user/<id>', methods=['GET'])
@@ -47,13 +39,8 @@ def get_one_user(id):
     user = User.query.filter_by(id=id).first()
     if not user:
         return {"message": "No user found!"}
-    user_data = {}
-    user_data["id"] = user.id
-    user_data["username"] = user.username
-    user_data["password"] = user.password
-    user_data["admin"] = user.admin
 
-    return {"user": user_data}
+    return {"user": user.to_dict()}
 
 @app.route('/user', methods=['POST'])
 @jwt_required()
@@ -157,14 +144,7 @@ def get_author_books():
     current_user = User.query.filter_by(id=current_id).first()
 
     books = Book.query.filter_by(user_id=current_user.id).all()
-    output = []
-    for book in books:
-        book_data = {}
-        book_data["id"] = book.id
-        book_data["title"] = book.title
-        book_data["complete"] = book.complete
-        book_data["user_id"] = book.user_id
-        output.append(book_data)
+    output = [book.to_dict() for book in books]
     return {"author_books": output}
 
 @app.route('/book/<id>', methods=['GET'])
@@ -173,12 +153,7 @@ def get_one_book(id):
     book = Book.query.filter_by(id=id).first()
     if not book:
         return {"message": "No book found!"}
-    book_data = {}
-    book_data["id"] = book.id
-    book_data["title"] = book.title
-    book_data["complete"] = book.complete
-    book_data["user_id"] = book.user_id
-    return {"book": book_data}
+    return {"book": book.to_dict()}
 
 
 @app.route('/book/<id>', methods=['DELETE'])
@@ -199,12 +174,7 @@ def edit_author_book(id):
     if "complete" in data:
         book.complete = data["complete"]
     db.session.commit()
-    book_data = {}
-    book_data["id"] = book.id
-    book_data["complete"] = book.complete
-    book_data["title"] = book.title
-    book_data["user_id"] = book.user_id
-    return {"book": book_data}
+    return {"book": book.to_dict()}
 
 
 @app.route('/book', methods=['POST'])
