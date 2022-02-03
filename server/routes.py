@@ -79,8 +79,7 @@ def create_user():
     new_user = User(
         username=data["username"],
         password=hashed_password,
-        admin=False,
-        bk_id=)
+        admin=False)
 
     try:
         db.session.add(new_user)
@@ -180,7 +179,6 @@ def logout():
 @jwt_required()
 def get_author_books():
     current_user = User.query.filter_by(id=get_jwt_identity()).first()
-    print("**************************", current_user.id)
     books = Book.query.filter_by(usr_id=current_user.id).all()
 
     if not books:
