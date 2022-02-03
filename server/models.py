@@ -19,7 +19,14 @@ class User(db.Model):
             "admin": self.admin
         }
 
-# author_book = db.Table()
+
+author_book = db.Table(
+    'author_book',
+    db.Column('user_id', UUID(as_uuid=True), db.ForeignKey('user.id'),
+              primary_key=True),
+    db.Column('book_id', UUID(as_uuid=True),
+              db.ForeignKey('book.id'), primary_key=True)
+)
 
 
 class Book(db.Model):

@@ -143,7 +143,6 @@ def delete_user(id):
         abort(500, 'Internal server error')
 
 
-
 @app.route('/login', methods=['POST'])
 def login():
     auth = request.authorization
