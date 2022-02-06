@@ -20,15 +20,6 @@ class User(db.Model):
         }
 
 
-author_book = db.Table(
-    'author_book',
-    db.Column('user_id', UUID(as_uuid=True), db.ForeignKey('user.id'),
-              primary_key=True),
-    db.Column('book_id', UUID(as_uuid=True),
-              db.ForeignKey('book.id'), primary_key=True)
-)
-
-
 class Book(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
                    unique=True, nullable=False)

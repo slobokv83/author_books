@@ -132,15 +132,12 @@ def delete_user(id):
         abort(401, 'User does not exist')
 
     try:
-        if not user.admin:
-            db.session.delete(user)
-            db.session.commit()
-
-            return {"message": "The user has been deleted!"}
-        else:
-            return {"message": "Admin could not be deleted!"}
+        db.session.delete(user)
+        db.session.commit()
     except exc.SQLAlchemyError:
         abort(500, 'Internal server error')
+
+    return {"message": "The user has been deleted!"}
 
 
 @app.route('/login', methods=['POST'])
