@@ -55,6 +55,29 @@ def get_one_user(id):
     return {"user": user.to_dict()}
 
 
+@app.route('/superuser', methods=['POST'])
+def superuser_create_user():
+    data = request.get_json()
+
+    hashed_password = generate_password_hash(
+        data["password"], method=app.config["HASH_ALGORITHM"])
+
+    new_user = User(
+        username=data["username"],
+        password=hashed_password,
+        admin=data["admin"])
+
+    try:
+        db.session.add(new_user)
+        db.session.commit()
+    except exc.IntegrityError:
+        abort(400, 'User already exists')
+    except exc.SQLAlchemyError:
+        abort(500, 'Internal server error')
+
+    return {"message": "New user created from the superuser!"}
+
+
 @app.route('/user', methods=['POST'])
 @jwt_required()
 def create_user():
