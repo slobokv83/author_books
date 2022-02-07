@@ -4,14 +4,30 @@ services:
   web:
     restart: always
     build: .
-    command: python author_app.py
+    command: >
+      sh -c "python author_app.py wait_for_db &&
+             python author_app.py upgrade &&
+             python author_app.py runserver 0.0.0.0:5000"
     ports:
       - '5000:5000'
+    # depends_on:
+    #   - upgrade
     links:
       - postgres:postgres
       - redis:redis
     env_file:
       - .env
+
+  # upgrade:
+  #   build: .
+  #   image: app
+  #   command: flask db upgrade
+  #   volumes:
+  #     - .:/usr/src/app
+  #   links:
+  #     - postgres
+  #   depends_on:
+  #     - postgres
 
   postgres:
     restart: always
